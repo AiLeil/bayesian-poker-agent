@@ -1,7 +1,7 @@
 # Bayesian Poker Agent (BPA)
 
 <p align="center">
-    <b>English</b> | <a href="./README.md">简体中文</a>
+    <b>English</b> | <a href="./README_zh.md">简体中文</a>
 </p>
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue)

@@ -116,7 +116,7 @@ python main_ai.py
 
 ---
 
-*声明：由 Gemini 3 Pro 辅助开发
+声明：由 Gemini 3 Pro 辅助开发
 
 
 
