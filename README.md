@@ -1,7 +1,7 @@
 # Bayesian Poker Agent (BPA)
 
 <p align="center">
-    <b>English</b> | <a href="./README_zh.md">简体中文</a>
+    <b>English</b> | <a href="./README.md">简体中文</a>
 </p>
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
@@ -18,7 +18,7 @@ The goal of this project is to build a **lightweight, highly adaptive agent** de
 ### Highlights
 * Utilizes `Beta Distribution` to solve the "Cold Start" problem when historical data on an opponent is scarce.
 * Implements a custom-built poker physics engine and state machine from scratch, without relying on black-box libraries.
-* Integrates the **Kelly Criterion** for bankroll management and includes a PnL (Profit and Loss) backtesting module.
+* Real-time **Monte Carlo Simulation** for accurate Equity calculation.
 
 ---
 
@@ -30,16 +30,17 @@ The project follows a **Modular Layered Architecture**, strictly decoupling the 
 bayesian-poker-agent/
 ├── poker_engine/       # [Physics Layer] Handles game rules, no strategy logic
 │   ├── card.py         # Basic Data Structures (Card, Deck)
-│   ├── game.py         # Finite State Machine (FSM) managing flow from Pre-flop to River
-│   └── pot.py          # Complex pot allocation logic (Main Pot / Side Pots)
-├── brain/              # [Observation Layer] Handles stats and inference
-│   ├── tracker.py      # Tracks opponent actions across different Streets/Positions
-│   └── inference.py    # Core Bayesian Inference Engine (Beta Distribution Updates)
-├── strategy/           # [Decision Layer] Handles final decision making
-│   ├── equity.py       # Monte Carlo Simulation for Win Rate calculation
-│   └── decision.py     # Combines Equity + Posterior Probabilities to output Action
-├── tests/              # Unit Tests (TDD)
-└── main.py             # Entry Point
+│   ├── player.py       # Player entity & Stack management
+│   ├── game.py         # Finite State Machine (FSM) managing flow
+│   ├── action.py       # Action protocols & interfaces
+│   └── evaluator.py    # Hand strength evaluator (Wrapper around treys)
+├── poker_ai/           # [Brain Layer] Logic & Strategy
+│   ├── agent.py        # Core Agent (Decision making based on Odds/Equity)
+│   └── equity.py       # Monte Carlo Simulation Engine
+├── tests/              # Unit Tests (pytest)
+├── main_ai.py          # Entry Point (Human vs AI)
+└── main_debug.py       # Debug Script
+
 ```
 
 ---
@@ -52,31 +53,30 @@ bayesian-poker-agent/
 | **Core Libs** | `numpy` | Matrix operations & efficient data handling |
 | **Stats** | `scipy.stats` | Bayesian Distributions (Beta, Normal) |
 | **Testing** | `pytest` | Unit Testing & TDD Workflow |
-| **Visualization** | `matplotlib` | Training curves & PnL visualization |
-| **Utilities** | `treys` | (Optional) Fast hand strength evaluation |
+| **Utilities** | `treys` | Fast hand strength evaluation |
 
 ---
 
 ## 4. Roadmap
 
-### Sprint 1: The Physics Engine (In Progress)
+### Sprint 1: The Physics Engine (Completed ✅)
 
 * [x] Implement `Card` & `Deck` classes.
 * [x] Implement `Player` class with stack management.
-* [ ] Implement Game Loop (State Machine transitions).
-* [ ] Basic CLI for Random Bot vs. Random Bot.
+* [x] Implement Game Loop (State Machine transitions).
+* [x] Basic CLI for Human vs. AI.
 
-### Sprint 2: The Bayesian Brain
+### Sprint 2: Strategy & Calculation (In Progress 🚧)
+
+* [x] Implement Monte Carlo Equity Calculator.
+* [x] Basic Pot Odds decision model.
+* [ ] Implement EV-based Aggression logic.
+
+### Sprint 3: The Bayesian Brain (Planned 📅)
 
 * [ ] Design `OpponentModel` class.
 * [ ] Implement Bayesian Update mechanism.
-* [ ] Visualize belief convergence (Beta Distribution plots).
-
-### Sprint 3: Strategy & Exploitation
-
-* [ ] Implement Monte Carlo Equity Calculator.
-* [ ] Logic for "Bluffing" vs. "Value Betting" based on opponent stats.
-* [ ] Backtesting framework against static strategies (e.g., Calling Station).
+* [ ] Dynamic adjustment against Loose/Aggressive opponents.
 
 ---
 
@@ -86,15 +86,16 @@ bayesian-poker-agent/
 
 ```bash
 # 1. Clone the repository
-git clone git clone https://github.com/AiLeil/bayesian-poker-agent.git
+git clone [https://github.com/AiLeil/bayesian-poker-agent.git](https://github.com/AiLeil/bayesian-poker-agent.git)
 cd bayesian-poker-agent
 
 # 2. Create virtual environment
-python3 -m venv venv
+python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # 3. Install dependencies
 pip install -r requirements.txt
+
 ```
 
 ### Run Tests
@@ -103,19 +104,18 @@ This project strictly follows TDD (Test-Driven Development). Run the following t
 
 ```bash
 python -m pytest
+
 ```
 
-### Start Game (Preview)
+### Start Game (Human vs AI)
 
 ```bash
-python main.py
+python main_ai.py
+
 ```
 
 ---
 
-
-
 *Acknowledgement: Developed with the assistance of Gemini 3 Pro (AI Pair Programmer).*
 
-
-
+```
