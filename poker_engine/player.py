@@ -1,98 +1,101 @@
-from enum import Enum
+from enum import Enum, auto
 from typing import List, Optional
+from dataclasses import dataclass, field
 from poker_engine.card import Card
 
 # ==========================================
-# Enums (枚举状态)
+# Enums (状态机)
 # ==========================================
 class PlayerState(Enum):
     """
-    定义玩家在当前手牌中的状态。
-    继承 Enum 类，类似于 Java 的 public enum PlayerState {...}
+    玩家状态枚举。
+    使用 auto() 自动赋值，后续如果想调整顺序或插入状态很方便。
     """
-    ACTIVE = 1   # 活跃状态 (还能下注/跟注)
-    FOLDED = 2   # 已弃牌 (这手牌结束)
-    ALL_IN = 3   # 全押 (无法再做动作，但拥有底池权益)
-    OUT = 4      # 输光离场 (筹码归零)
+    ACTIVE = auto()   # 活跃：还在局中，可以思考和行动
+    FOLDED = auto()   # 弃牌：这一局已经结束，只围观
+    ALL_IN = auto()   # 全押：筹码已耗尽，等待开牌，不能再做动作
+    OUT = auto()      # 出局：输光了所有身家，彻底离开游戏
 
+# ==========================================
+# Player Class
+# ==========================================
+@dataclass
 class Player:
     """
-    Player 类表示桌上的一个玩家。
-    管理玩家的筹码(Stack)、手牌(Hand)和当前状态(State)。
+    Player 类 (v2.0 Industrial Grade)
+    
+    设计重点：
+    1. Mutable (可变): 玩家的筹码、手牌、状态随时在变，所以不用 frozen=True。
+    2. Integer Money: 所有金额字段强制使用 int，避免浮点数精度误差。
     """
+    name: str                  # 玩家ID/名字
+    stack: int                 # 剩余筹码 (单位: 最小原子，如 '分')
+    hand: List[Card] = field(default_factory=list)  # 玩家手牌
+    state: PlayerState = PlayerState.ACTIVE         # 当前状态
+    
+    # 状态追踪字段
+    current_round_bet: int = 0  # 这一轮(street)下了多少注 (用于计算还需要跟注多少)
+    total_pot_contribution: int = 0 # 这一整局一共投入了多少 (用于分底池 Side Pot)
 
-    def __init__(self, name: str, initial_stack: float):
+    def bet(self, amount: int) -> int:
         """
-        初始化玩家。
-
-        Args:
-            name (str): 玩家的名字 (ID)。
-            initial_stack (float): 初始筹码量。
-        """
-        self.name = name
-        self.stack = initial_stack
-        self.hand: List[Card] = []  # 玩家的手牌 (2张)
-        self.state = PlayerState.ACTIVE
+        玩家下注的核心逻辑。
+        自动处理 All-in 情况。
         
-        # 记录这一轮下注了多少钱 (用于计算 Side Pot 或平账)
-        self.current_bet = 0.0
-
-    def receive_cards(self, cards: List[Card]):
-        """
-        接收手牌 (发牌阶段)。
-        """
-        self.hand = cards
-        self.state = PlayerState.ACTIVE # 每次发牌时，状态重置为活跃
-
-    def bet(self, amount: float) -> float:
-        """
-        玩家尝试下注 amount 金额。
-        如果筹码不够，则自动转为 All-in。
-
         Args:
-            amount (float): 想要下注的金额。
-
+            amount: 想要下注的金额 (int)
+            
         Returns:
-            float: 实际下注的金额 (如果是 All-in，可能小于 amount)。
+            actual_bet: 实际下注成功的金额
         """
         if amount < 0:
-            raise ValueError("下注金额不能为负数")
-
-        # 逻辑：如果剩下的钱不够支付 amount，那就 All-in 剩下的所有钱
+            raise ValueError(f"下注金额不能为负数: {amount}")
+        
+        # 1. 检查是不是 All-in
         if amount >= self.stack:
             actual_bet = self.stack
             self.stack = 0
             self.state = PlayerState.ALL_IN
         else:
             actual_bet = amount
-            self.stack = self.stack - actual_bet
-            # 状态保持 ACTIVE
-
-        self.current_bet += actual_bet
+            self.stack -= actual_bet
+            # 注意：状态保持 ACTIVE，除非之前就是 ALL_IN (理论上不可能)
+            
+        # 2. 更新统计数据
+        self.current_round_bet += actual_bet
+        self.total_pot_contribution += actual_bet
+        
         return actual_bet
 
     def fold(self):
         """
-        玩家弃牌。
+        弃牌操作。
         """
         self.state = PlayerState.FOLDED
-        self.hand = [] # 弃牌通常不亮牌，清空手牌 (可选逻辑)
+        self.hand = [] # 可选：弃牌后清空手牌，防止误判
 
-    def reset_for_new_round(self):
+    def receive_cards(self, cards: List[Card]):
         """
-        在每一轮下注结束或新的一手牌开始时调用。
-        重置当前下注额，但保留 stack。
+        新的一局开始，接收手牌。
         """
-        self.current_bet = 0
-        # 注意：不要在这里重置 hand 或 state，那通常是 start_hand 做的事
+        self.hand = cards
+        # 只有没输光的人才能由 OUT 变回 ACTIVE
+        # 如果是 ALL_IN 状态结束上一局赢了钱，这里也重置为 ACTIVE
+        if self.stack > 0:
+            self.state = PlayerState.ACTIVE
+        else:
+            self.state = PlayerState.OUT
+
+    def reset_round_state(self):
+        """
+        当进入下一轮 (e.g. Flop -> Turn) 时调用。
+        清空当前轮的下注记录，但不清空总投入。
+        """
+        self.current_round_bet = 0
 
     def __str__(self):
-        """
-        显示玩家基础信息。
-        例如: "Player(Gemini, stack=100.0, state=ACTIVE)"
-        """
-        # 注意：self.state.name 会获取枚举的名字 (如 'ACTIVE')
-        return f"Player({self.name}, stack={self.stack}, state={self.state.name})"
+        # 显示时稍微友好一点，带上状态
+        return f"Player({self.name}, stack={self.stack}, state={self.state.name}, hand={self.hand})"
 
     def __repr__(self):
         return self.__str__()
