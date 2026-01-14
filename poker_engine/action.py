@@ -12,7 +12,8 @@ class ActionType(Enum):
 @dataclass
 class Action:
     action_type: ActionType
-    amount: int = 0  # 只有在 RAISE 时才有效，代表"加注到的总金额" (Raise To)
+    # Valid only for RAISE, represents the "Total Amount Raised To" (Raise To)
+    amount: int = 0  
 
     def __str__(self):
         if self.action_type == ActionType.RAISE:
